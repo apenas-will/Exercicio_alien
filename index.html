@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exercício do Alien</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+    </style>
+</head>
+
+<body>
+    <script>
+        // Definição de variáveis constantes, ou seja, que não podem ser redefinidas posteriormente
+        const larguraJogo = 700;
+        const alturaJogo = 850;
+
+        // Define as configurações básicas do nosso jogo
+        const config = {
+            type: Phaser.AUTO,
+            width: larguraJogo, // Usa o valor contido na variável definida anteriormente para definir a largura do jogo
+            height: alturaJogo, // Usa o valor contido na variável definida anteriormente para definir a altura do jogo
+
+            // Ativando a física no jogo
+            physics: {
+                default: 'arcade',
+                arcade: {
+                    gravity: { y: 300 },
+                    debug: false // Esconde a visualização do "hit box" dos elementos do jogo
+                }
+            },
+
+            scene: {
+                preload: preload,
+                create: create,
+                update: update
+            }
+        };
+
+        // Define uma instância do Phaser para o nosso jogo
+        const game = new Phaser.Game(config);
+
+        // Variáveis que serão usadas ao longo do jogo
+        posiçõesPlataformas_X = [larguraJogo / 2, larguraJogo / 3, larguraJogo - larguraJogo / 3]; // Possíveis posições e x para as plataformas
+        posiçõesPlataformas_Y = [alturaJogo / 5, alturaJogo / 3, alturaJogo / 2, alturaJogo - alturaJogo / 3, alturaJogo - alturaJogo / 5]; // Possíveis posições em y para as plataformas
+        var etezinho;
+        var teclado;
+        var fogo;
+        var plataforma1;
+        var plataforma2;
+        var plataforma3;
+        var pontuação = 0;
+        var placar;
+
+        // Carrega elementos dentro do nosso jogo
+        function preload() {
+            this.load.image('background', 'assets/bg.png');
+            this.load.image('etezinho', 'assets/etezinho.png');
+            this.load.image('foguinho', 'assets/foguinho.png');
+            this.load.image('plataforma1', 'assets/plataforma.png');
+            this.load.image('plataforma2', 'assets/plataforma.png');
+            this.load.image('plataforma3', 'assets/plataforma.png');
+            this.load.image('moeda', 'assets/moeda.png');
+        }
+
+        // Adiciona elementos dentro do nosso jogo
+        function create() {
+            // Adiciona uma imagem como tela de fundo, posicionando-a de modo centralizado à tela do nosso jogo
+            this.add.image(larguraJogo / 2, alturaJogo / 2, 'background');
+
+            // Cria o foguinho do turbo
+            fogo = this.add.sprite(0, 0, 'foguinho');
+            fogo.setVisible(false);
+
+            // Cria o alien
+            etezinho = this.physics.add.sprite(larguraJogo / 2, 0, 'etezinho').setScale(0.8);
+            etezinho.setCollideWorldBounds(true); // Determina que o personagem não pode ultrapassar os limites do mapa, colidindo com eles em vez disso
+
+            // Permite que acessemos inputs do teclado
+            teclado = this.input.keyboard.createCursorKeys();
+
+            // Cria a plataforma1
+            plataforma1 = this.physics.add.sprite(posiçõesPlataformas_X[0], alturaJogo / 2, 'plataforma1').setImmovable(); // Cria a plataforma1 como sprite, porém diz que em caso de colisão ela permanece imóvel
+            plataforma1.body.allowGravity = false; // Estabelece que a plataforma não é afetada pela gravidade
+            this.physics.add.collider(etezinho, plataforma1); // Estabelece que o alien não consegue atravessar a plataforma1, mas colide com esta
+
+            // Cria a plataforma2
+            plataforma2 = this.physics.add.sprite(posiçõesPlataformas_X[1], alturaJogo / 2, 'plataforma2').setImmovable(); // Cria a plataforma2 como sprite, porém diz que em caso de colisão ela permanece imóvel
+            plataforma2.body.allowGravity = false; // Estabelece que a plataforma não é afetada pela gravidade
+            this.physics.add.collider(etezinho, plataforma2); // Estabelece que o alien não consegue atravessar a plataforma, mas colide com esta
+
+            // Cria a plataforma3
+            plataforma3 = this.physics.add.sprite(posiçõesPlataformas_X[2], alturaJogo / 2, 'plataforma3').setImmovable(); // Cria a plataforma2 como sprite, porém diz que em caso de colisão ela permanece imóvel
+            plataforma3.body.allowGravity = false; // Estabelece que a plataforma não é afetada pela gravidade
+            this.physics.add.collider(etezinho, plataforma3); // Estabelece que o alien não consegue atravessar a plataforma, mas colide com esta
+
+            // Cria as moedas
+            moeda = this.physics.add.sprite(larguraJogo / 2, 0, 'moeda').setScale(0.7);
+            moeda.setCollideWorldBounds(true);
+            moeda.setBounce(0.7);
+
+            // Adiciona colisão entre a moeda e as plataformas
+            this.physics.add.collider(moeda, plataforma1);
+            this.physics.add.collider(moeda, plataforma2);
+            this.physics.add.collider(moeda, plataforma3);
+
+            // Cria o placar
+            placar = this.add.text(50, 50, 'Moedas:' + pontuação, { fontSize: '45px', fill: '#000000' })
+
+            // Cria a interação entre o alien e as moedas
+            this.physics.add.overlap(etezinho, moeda, function () {
+                moeda.setVisible(false); // Muda a visibilidade da moeda, fazendo-a sumir
+
+                // Define a nova posição da moeda após ela ser coletada
+                var posicaoMoeda_X = Phaser.Math.RND.between(50, 650);
+                var posicaoMoeda_Y = Phaser.Math.RND.between(0, 500);
+                moeda.setPosition(posicaoMoeda_X, posicaoMoeda_Y);
+
+                // Altera a pontuação quando a moeda é coletada e atualiza o placar
+                pontuação += 1;
+                placar.setText('Moedas: ' + pontuação);
+
+                moeda.setVisible(true); // Altera a visibilidade da moeda
+
+                // Muda a posição das plataformas após o aparecimento da moeda
+                plataforma1.setPosition(Phaser.Math.RND.pick(posiçõesPlataformas_X), Phaser.Math.RND.pick(posiçõesPlataformas_Y));
+                plataforma2.setPosition(Phaser.Math.RND.pick(posiçõesPlataformas_X), Phaser.Math.RND.pick(posiçõesPlataformas_Y));
+                plataforma3.setPosition(Phaser.Math.RND.pick(posiçõesPlataformas_X), Phaser.Math.RND.pick(posiçõesPlataformas_Y));
+            })
+        }
+
+        // Atualiza elementos dentro do nosso jogo
+        function update() {
+            // Movimentos no eixo x
+            if (teclado.left.isDown) {
+                etezinho.setVelocityX(-200);
+            }
+            else if (teclado.right.isDown) {
+                etezinho.setVelocityX(200);
+            }
+            else {
+                etezinho.setVelocityX(0);
+            }
+
+            // Movimentos no eixo y
+            if (teclado.up.isDown) {
+                etezinho.setVelocityY(-200);
+                ativarFoguinho();
+            }
+            else { semFoguinho(); }
+
+            // Posiciona o foguinho
+            fogo.setPosition(etezinho.x, etezinho.y + etezinho.height / 2);
+        }
+
+        // Define a função que ativa o foguinho
+        function ativarFoguinho() {
+            fogo.setVisible(true);
+        }
+
+        // Define a função que some com o foguinho
+        function semFoguinho() {
+            fogo.setVisible(false);
+        }
+    </script>
+</body>
+
+</html>
